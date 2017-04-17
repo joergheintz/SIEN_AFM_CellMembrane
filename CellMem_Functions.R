@@ -446,8 +446,6 @@ PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,
 }
 
 
-
-
 PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200){
         plots<-list()
         n=0
