@@ -73,6 +73,8 @@ PreprocessingIngestedRawData<-function(myfilename, y_trace__y_retrace = "y_trace
 }
 
 
+
+
 #####################################################################################################
 #####################################################################################################
 
@@ -179,6 +181,7 @@ BuildCluster<-function(mydata, BinVariable){
                 }
         }
         colnames(mydata)[which(names(mydata) == "byBinVariable")] <- BinVariable
+
         mydata
 }
 
@@ -193,17 +196,27 @@ MinMaxSlope <- function(mydata){
                 xmin = min(x),
                 xmax = max(x),
                 ymin = min(y),
-                ymax = max(y)
+                ymax = max(y),
+                x.fitted.min = min(x.fitted),
+                x.fitted.max = max(x.fitted),
+                y.resid.min = min(y.resid),
+                y.resid.max = max(y.resid)
                 
         )
         # calculate dxmax, max, slope
         mydata <- mydata %>% mutate(
                 dxmax = xmax - xmin,
                 dymax = (ymax - ymin) * st_sl,
-                slope = dymax/dxmax
+                slope = dymax/dxmax,
+                dx.fitted.max = x.fitted.max - x.fitted.min,
+                dy.resid.max = (y.resid.max - y.resid.min) * st_sl,
+                slope.fit = dy.resid.max / dx.fitted.max
         )
         
-        mydata <- mydata %>% select(x:y, dxmax, dymax, slope, xmin:ymax, half_loop, cluster, st_sl, ID, f_on_samp, system, trace_d, mSL, line_rate, length, tip, date, alpha)
+        mydata <- mydata %>% select(x:y, dxmax, dymax, slope, reg.slope, reg.intercept,  xmin:ymax, x.fitted, y.resid, x.fitted.min, x.fitted.max, 
+                                    y.resid.min, y.resid.max, dx.fitted.max, dy.resid.max, slope.fit,
+                                    half_loop, cluster, st_sl, ID, f_on_samp, 
+                                    system, trace_d, mSL, line_rate, length, tip, date, alpha)
         mydata[mydata$slope < 0, c("ymin", "ymax")] <- mydata[mydata$slope < 0, c("ymax", "ymin")]
         mydata <- ungroup(mydata)
         mydata
@@ -227,6 +240,25 @@ Segments <- function(mydata=mydata){
         }
         mydata
 }
+
+#####################################################################################################
+#####################################################################################################
+
+
+SegmentsFit <- function(mydata=mydata){
+        mydata$dy.resid<-0
+        mydata$dx.fitted<-0
+        for (i in 1:(length(mydata$cluster)-1)){
+                mydata$dy.resid[i+1]=abs((mydata$y.resid[i]-mydata$y.resid[i+1])) * mydata$st_sl[i+1]
+                mydata$dx.fitted[i+1]=mydata$x.fitted[i]-mydata$x.fitted[i+1]
+                if (mydata$half_loop[i+1] != mydata$half_loop[i]) {
+                        mydata$dy.resid[i+1]<-0
+                        mydata$dx.fitted[i+1]<-0
+                }
+        }
+        mydata
+}
+
 
 
 #####################################################################################################
@@ -252,7 +284,35 @@ Smoothing <- function(mydata){
 #####################################################################################################
 
 
-PlotCol<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, h = 18, res = 200){
+InsertResidual<-function(mydata = mydata){
+        mydata$x.fitted<-0
+        mydata$y.resid<-0
+        mydata$reg.slope<-0
+        mydata$reg.intercept<-0
+        for (s in unique(mydata$system)){
+                mys<-mydata[mydata$system == s, ]
+                for (l in unique(mys$half_loop)){
+                        mysl <- mys[mys$half_loop == l, ]
+                        
+                        fit<-lm(y ~ x, data = mysl)
+                        df <- augment(fit)
+                       
+                        mydata[mydata$half_loop == l,]$x.fitted <- as.numeric(df$.fitted)
+                        mydata[mydata$half_loop == l,]$y.resid <- as.numeric(df$.resid)
+                        mydata[mydata$half_loop == l,]$reg.slope <-  coef(fit)[2]
+                        mydata[mydata$half_loop == l,]$reg.intercept<-  coef(fit)[1]
+                }
+        }
+        mydata
+}
+
+
+
+#####################################################################################################
+#####################################################################################################
+
+
+PlotColFit<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, h = 18, xfitted=1, res = 200){
         plots<-list()
         n=0
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
@@ -266,18 +326,25 @@ PlotCol<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, h 
                 tr<-mys$trace_d
                 for (l in unique(mys$half_loop)){
                         mysl <- mys[mys$half_loop == l, ]
-                        
-                        
-                        g1 <- ggplot(mysl, aes(x = x, y = y)) + #xlim(0.2, 1.2)
-                        ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
-                        g1 <- g1 + geom_point(size = 0.05)
-                        g1 <- g1 + geom_line(size = 0.05, colour = "black")
+                        if (xfitted==1){
+                                g1 <- ggplot(data =mysl, aes(x = x.fitted, y = y.resid)) + 
+                                ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
+                                g1 <- g1 + geom_point(size = 0.05)
+                                g1 <- g1 + geom_line(size = 0.05, colour = "black")
+                        }
+                        if (xfitted == 0) {
+                                g1 <- ggplot(data = mysl, aes(x = x, y = y.resid)) +
+                                        ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
+                                g1 <- g1 + geom_point(size = 0.05)
+                                g1 <- g1 + geom_line(size = 0.05, colour = "black")
+                        }
+                                
                         n=n+1
                         plots[[n]] <- g1
                 }
         }
         if (p == 1) png(myname, units="in", width=w, height=h, res=res)
-        multiplot(plotlist = plots, cols =c)
+        multiplot(plotlist = plots, cols = c)
 }
 
 
@@ -301,7 +368,7 @@ PlotCol_RegLine<-function(mydata = mydata, myname = "sys.time", p = 0,  c= 3, w 
                         mysl <- mys[mys$half_loop == l, ]
                         
                         # curve + regression line
-                        g1 <- ggplot(mysl, aes(x=x,y=y, group = half_loop, colour = system))
+                        g1 <- ggplot(mysl, aes(x=x,y=y, group = half_loop))
                         g1 = g1 + geom_line(size = 0.05, colour = "black")
                         g1 = g1 + geom_point(size = 0.05, colour = "lightblue")
                         g1 = g1 + geom_smooth(method='lm',formula=y~x)
@@ -318,7 +385,93 @@ PlotCol_RegLine<-function(mydata = mydata, myname = "sys.time", p = 0,  c= 3, w 
                 }
         }
         if (p == 1) png(myname, units="in", width=w, height=h, res=res)
-        multiplot(plotlist = plots, cols =c)
+        multiplot(plotlist = plots, cols = c)
+}
+
+
+
+#####################################################################################################
+#####################################################################################################
+
+PlotCol_RegLine_Fit<-function(mydata = mydata, myname = "sys.time", p = 0,  c= 3, w = 15, h = 18, res = 200){
+        plots<-list()
+        n=0
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        
+        for (s in unique(mydata$system)){
+                mys<-mydata[mydata$system == s, ]
+                f<-mys$f_on_samp
+                v<-mys$line_rate
+                d<-mys$date
+                t<-mys$tip
+                tr<-mys$trace_d
+                for (l in unique(mys$half_loop)){
+                        mysl <- mys[mys$half_loop == l, ]
+                        
+                        # curve + regression line
+                        g1 <- ggplot(mysl, aes(x=x.fitted,y=y.resid, group = half_loop))
+                        g1 = g1 + geom_line(size = 0.05, colour = "black")
+                        g1 = g1 + geom_point(size = 0.05, colour = "lightblue")
+                        #g1 = g1 + geom_smooth(method='lm',formula=y.resid~x.fitted)
+                        
+                        # Segments and peaks, y-dy, dy = y+1 - y
+                        PeakSegm<-mysl
+                        PeakSegm<-PeakSegm[order(-abs(PeakSegm$dy.resid)), ]
+                        PeakSegm<-PeakSegm[1:5, ]
+                        g1 = g1 + geom_segment(data = PeakSegm, aes(x = x.fitted, y = y.resid, xend = x.fitted+dx.fitted, yend = y.resid-dy.resid), size = 0.8, colour = "red")
+                        g1 = g1 + geom_segment(data = PeakSegm, aes(x = x.fitted.min, y = y.resid.min, xend = x.fitted.max, yend = y.resid.max), size = 0.8, linetype = 2, colour = "blue")
+                        g1 = g1 + ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
+                        n=n+1
+                        plots[[n]] <- g1
+                }
+        }
+        if (p == 1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols = c)
+}
+
+
+#####################################################################################################
+                                #   Boxplots   #
+#####################################################################################################
+
+PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200){
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        g1 <- ggplot(mydata, aes(system, reg.slope))
+        g1 <- g1 + geom_boxplot(aes(fill = f_on_samp), outlier.colour = "red") #+ geom_point(size = 1, aes(colour = f_on_samp))
+        g1 <- g1 + ggtitle(paste0("Regression Slopes"))
+        g1 <- g1 + geom_abline(slope = 0, intercept = 0, linetype = 2, colour = 'red')
+        
+        if (p==1) png(myname, units="in", width=w, height=h, res=res)
+        g1
+}
+
+
+
+
+PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200){
+        plots<-list()
+        n=0
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        
+        for (s in unique(mydata$system)){
+                mys<-mydata[mydata$system == s, ]
+                v<-mys$line_rate
+                d<-mys$date
+                t<-mys$tip
+                tr<-mys$trace_d
+                for (l in unique(mys$f_on_samp)){
+                        mysl <- mys[mys$f_on_samp == l, ]
+                        
+                        g1 <- ggplot(mysl, aes(system, reg.slope))
+                        g1 <- g1 + ggtitle(paste0("Regression Slopes", ", ",l, ", ", v, " Hz", ", trace/re-trace: ", tr,  ", ", t, ", ", d))
+                        g1 <- g1 + geom_boxplot(aes(), outlier.colour = "red") + geom_point(size = 1, colour = "red")
+                        g1
+                        n=n+1
+                        plots[[n]] <- g1
+                }
+        }
+        if (p==1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols =3)
 }
 
 
@@ -376,9 +529,8 @@ PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, 
                 for (l in unique(mys$half_loop)){
                         mysl <- mys[mys$half_loop == l, ]
                         
-                        
-                        g1 <- ggplot(mysl, aes(x=dy,y=slope, group = half_loop, colour = system))
-                        g1 <- g1 + geom_point(size = 0.5)
+                        g1 <- ggplot(mysl, aes(x=dy,y=slope, group = half_loop))
+                        g1 <- g1 + geom_point(size = 0.2)
                         g1 <- g1 + ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
                         
                         n=n+1
@@ -388,11 +540,6 @@ PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, 
         if (p == 1) png(myname, units="in", width=w, height=h, res=res)
         multiplot(plotlist = plots, cols =c)
 }
-
-
-
-
-
 
 
 #####################################################################################################
