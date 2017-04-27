@@ -510,6 +510,100 @@ PlotColLm<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h 
 
 
 #####################################################################################################
+                        # Slope Plots #
+#####################################################################################################
+
+SlopeHistogram<-function(mydata, low = 0, up = 0, set_x_marker = 0, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time"){
+        if (low == 0 & up == 0 ) {
+                low<-min(mydata$slope)
+                up<-max(mydata$slope)}
+        h1 <- ggplot()
+        h1 <- h1 + geom_vline(xintercept = set_x_marker)
+        if (logscale == FALSE){
+                h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<up), ], aes(slope, fill = system), bins = bi)
+        }
+        if (logscale == TRUE){
+                min_plus <- as.logical(low<0 & up>=0)
+                min_min <- as.logical(low<0 & up<0)
+                plus_plus <- as.logical(low>0 & up>0)
+                
+                if(min_min == TRUE) 
+                        h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<up), ], aes(-log(abs(slope)), fill = system), bins = bi)
+                if(min_plus == TRUE)
+                        h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<0), ], aes(-log(abs(slope)), fill = system), bins = bi)
+                h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>0 & mydata$slope<up), ], aes(log(slope), fill = system), bins = bi)
+                if(plus_plus == TRUE)
+                        h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<up), ], aes(log(slope), fill = system), bins = bi)
+                
+        }
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        if (pr == 1) png(myname, units="in", width=w, height=h, res=res)
+        h1
+}
+
+#####################################################################################################
+#####################################################################################################
+
+PlotSlope_1<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p = 0, c= 2, w = 15, h = 18, res = 200){
+        plots<-list()
+        n=0
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        for (fsamp in unique(mydata$f_on_samp)){
+                mys<-mydata[mydata$f_on_samp == fsamp, ]
+                v<-mys$line_rate
+                d<-mys$date
+                t<-mys$tip
+                tr<-mys$trace_d
+                for (s in unique(mys$system)){
+                        mysl <- mys[mys$system == s, ]
+                        g1 <- ggplot()
+                        if (logscale == TRUE){
+                                g1 <- g1 + geom_point(data = mysl[mysl$slope<0,], aes(x=-log(abs(dy)) ,y=-log(abs(slope)), colour = system), size = 0.5)
+                                g1 <- g1 + geom_point(data = mysl[mysl$slope>0,], aes(x=log(dy) ,y=log(slope), colour = system), size = 0.5)
+                        }
+                        if (logscale == FALSE){
+                                g1 <- g1 + geom_point(data = mysl, aes(x=dy,y=slope, colour = system), size = 0.5)
+                        }
+                        g1 <- g1 + ggtitle(paste0(s, ", ",fsamp, ", ", v, " Hz", ", trace/re-trace: ", tr, ", ", t, ", ", d))
+                        n=n+1
+                        plots[[n]] <- g1
+                }
+        }
+        if (p == 1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols =c)
+}
+
+
+PlotSlope_2<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p = 0, c= 2, w = 15, h = 18, res = 200){
+        plots<-list()
+        n=0
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        for (fsamp in unique(mydata$f_on_samp)){
+                mys<-mydata[mydata$f_on_samp == fsamp, ]
+                v<-mys$line_rate
+                d<-mys$date
+                t<-mys$tip
+                tr<-mys$trace_d
+                for (s in unique(mys$system)){
+                        mysl <- mys[mys$system == s, ]
+                        g1 <- ggplot()
+                        if (logscale == TRUE){
+                                g1 <- g1 + geom_point(data = mysl[mysl$dy<0,], aes(x=-log(abs(dy)),y=slope, colour = system), size = 0.5)
+                                g1 <- g1 + geom_point(data = mysl[mysl$dy>0,], aes(x= log(dy) ,y=slope, colour = system), size = 0.5)
+                        }
+                        if (logscale == FALSE){
+                                g1 <- g1 + geom_point(data = mysl, aes(x=dy,y=slope, colour = system), size = 0.5)
+                        }
+                        g1 <- g1 + ggtitle(paste0(s, ", ",fsamp, ", ", v, " Hz", ", trace/re-trace: ", tr, ", ", t, ", ", d))
+                        n=n+1
+                        plots[[n]] <- g1
+                }
+        }
+        if (p == 1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols =c)
+}
+
+#####################################################################################################
 #####################################################################################################
 
 PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, h = 18, res = 200){
@@ -539,6 +633,72 @@ PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, 
         multiplot(plotlist = plots, cols =c)
 }
 
+#####################################################################################################
+#####################################################################################################
+
+
+dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_scale = FALSE, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time"){
+        plots<-list()
+        n=0
+        mindy = 0
+        maxdy = 0
+        mincount = 0
+        maxcount = 0
+        if (low == 0 & up == 0 ) {
+                low<-min(mydata$slope)
+                up<-max(mydata$slope)}
+        
+        for (i in unique(mydata$f_on_samp)){
+                myfdata<-mydata[mydata$f_on_samp == i & mydata$dy!=0,]
+                h1 <- ggplot()
+                h1 <- h1 + ggtitle(paste0("Load = ",i))
+                #h1 <- h1 + geom_vline(xintercept = set_x_marker)
+                if (logscale == FALSE){
+                        h1 <- h1 + geom_histogram(data = 
+                                                          myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(dy, fill = system), bins = bi)
+                }
+                if (logscale == TRUE){
+                        min_plus <- as.logical(low<0 & up>=0)
+                        min_min <- as.logical(low<0 & up<=0)
+                        plus_plus <- as.logical(low>0 & up>=0)
+                        
+                        if(min_min == TRUE) 
+                                h1 <- h1 + geom_histogram(data = 
+                                                                  myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(-log(abs(dy)), fill = system), bins = bi)
+                        if(min_plus == TRUE)
+                                h1 <- h1 + geom_histogram(data = 
+                                                                  myfdata[(myfdata$slope>low & myfdata$slope<=0), ], aes(-log(abs(dy)), fill = system), bins = bi)
+                        h1 <- h1 + geom_histogram(data = 
+                                                          myfdata[(myfdata$slope>=0 & myfdata$slope<up), ], aes(log(dy), fill = system), bins = bi)
+                        if(plus_plus == TRUE)
+                                h1 <- h1 + geom_histogram(data = 
+                                                                  myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(log(dy), fill = system), bins = bi)
+                }
+                # scales 
+                if (same_scale == TRUE){
+                        min_ct<-as.numeric(min(hist(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dy, plot = FALSE, breaks = bi)$counts))
+                        max_ct<-as.numeric(max(hist(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dy, plot = FALSE, breaks = bi)$counts))
+                        if (mindy > min(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dy)) mindy <- min(myfdata$dy)
+                        if (maxdy < max(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dy)) maxdy <- max(myfdata$dy)
+                        if (mincount > min_ct) mincount <- min_ct
+                        if (maxcount < max_ct) maxcount <- max_ct
+                        #print(paste("min_ct = ", min_ct, "max_ct = ", max_ct))
+                        #print(paste("counts histogram = ", hist(myfdata[myfdata$slope>low & myfdata$slope<up & myfdata$dy != 0, ]$dy, breaks = bi)$counts))
+                }
+                n=n+1
+                plots[[n]] <- h1
+        }
+        
+        if (same_scale == TRUE){
+                for (i in 1:n){
+                        plots[[i]] <- plots[[i]] + ylim(c(mincount, maxcount)) + xlim(c(mindy, maxdy))
+                }
+        }
+        
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        if (pr == 1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols = c)
+}
 
 #####################################################################################################
 #####################################################################################################

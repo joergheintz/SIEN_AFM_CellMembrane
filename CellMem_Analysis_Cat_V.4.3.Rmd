@@ -1,0 +1,215 @@
+---
+title: " IN PROGRESS --- Cell Membrane Friction - Stick Slip"
+author: "Joerg Heintz, April 2017"
+output:
+  html_document: default
+  pdf_document: default
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# !diagnostics off
+library(xlsx)
+library(ggplot2)
+library(plotly)
+library(knitr)
+library(dplyr)
+library(grid)
+library(gridExtra)
+library(broom)
+library(shiny)
+library(manipulate)
+knitr::opts_chunk$set(echo = FALSE)
+opts_knit$set(root.dir = "/Users/joergheintz/Documents/06_Projects/FrictionCellMembranes")
+source("CellMem_Functions.R")
+```
+
+#Data Fetching 
+## Determine Download Parameter AFM txt-files
+```{r, echo = TRUE,  eval=TRUE, results = "hide"}
+# path to AFM files on the server or a local machine, all files in that folder will be read
+        setwd("/Users/joergheintz/Documents/06_Projects/FrictionCellMembranes")
+        mypath <- "/Users/joergheintz/Documents/06_Projects/FrictionCellMembranes/02_Data"  
+# provide number of lines that need to be skipped, header of AFM file
+        fileLineOffset <- 12 
+
+# spring constant alpha
+        alpha = 2.93
+
+# provide column numbers
+        ColumnsOfInterest <- c(1,7,8) # provide columnames tha need to be read in. predefined is x, y-trace, y-retrace
+        lowlimit = 513 #read lines from "lowlimit" to "uplimit" from each AFT txt file
+        uplimit = 4096 #read lines from "lowlimit" to "uplimit" from  each AFT txt file
+
+# collect and stores data from the raw AFM files 
+        myRawData<-Ingestion(alpha = alpha, ColumnsOfInterest = ColumnsOfInterest, fileLineOffset = fileLineOffset,
+        mypath = mypath, lowlimit = lowlimit , uplimit = uplimit)
+```
+
+
+## Ingestion and Processing
+
+## Data Manipulation for Plotting
+```{r, echo = TRUE, eval = TRUE, results="hide"}
+# Determining trace or retrace, this file reads the csv file that is generated in the "Ingestion" function
+        myfilename<-"CellMembrane_Friction_20170324.csv"
+        y_trace__y_retrace<-"y_trace"  # options are y_trace / Y_retrace
+      
+# Reads from the RawData File a data subset
+#. e.g. trace or retrace, and categorical variables from the AFM
+        mydata<-PreprocessingIngestedRawData(myfilename = myfilename, y_trace__y_retrace = y_trace__y_retrace)
+        
+# Case Definitions
+        GelPEMvsFullsytem_2nN_50nN <- as.logical(mydata$system == "GelPEM" | mydata$system == "FullSystem")
+        GelPEMvsFullsytem_2nN <- as.logical((mydata$system == "GelPEM" | mydata$system == "FullSystem") & mydata$f_on_samp == "2nN")
+        GelPEMvsGelvsFullsytem_2nN <- as.logical((mydata$system == "GelPEM" | mydata$system == "FullSystem" | mydata$system == "Gel") &  mydata$f_on_samp == "2nN")
+        GelPEMvsGelvsFullsytem_2nN_50nN <- as.logical((mydata$system == "GelPEM" | mydata$system == "FullSystem" | mydata$system == "Gel"))
+        GelPEMvsFullsytem_50nN <- as.logical((mydata$system == "GelPEM" | mydata$system == "FullSystem") & mydata$f_on_samp == "50nN")
+        GelvsFullsytem_50nN <- as.logical((mydata$system == "Gel" | mydata$system == "FullSystem") & mydata$f_on_samp == "50nN")
+        GelvsFullsytem_2nN <- as.logical((mydata$system == "Gel" | mydata$system == "FullSystem") & mydata$f_on_samp == "2nN")
+
+        #mydata<-mydata[GelPEMvsFullsytem_2nN_50nN, ]
+        mydata<-mydata[GelPEMvsFullsytem_2nN, ]
+        #mydata<-mydata[GelPEMvsGelvsFullsytem_2nN, ]
+        #mydata<-mydata[GelPEMvsGelvsFullsytem_2nN_50nN, ]
+        #mydata<-mydata[GelPEMvsFullsytem_50nN, ]
+        #mydata<-mydata[GelvsFullsytem_2nN, ]
+        #mydata<-mydata[GelvsFullsytem_50nN, ]
+```
+
+
+#Data Processing Pipeline
+```{r, eval = TRUE, echo = TRUE, fig.width=10, fig.height=18, results = "hide"}
+# Pipeline
+## Data PreProcessing, mark sticks and slips
+        mydata<-StickSlip(mydata, "half_loop")
+## Cluster the sticks and slips, provide data.frame and name for the cluster variable
+        mydata<-BuildCluster(mydata, "st_sl")
+## calc residuals / take out linear effect of x
+        mydata<-InsertResidual(mydata)
+## Determine max min slope by dymax/dxmax for each peak
+        mydata<-MinMaxSlope(mydata)
+## Calculate the segmebts (with x, xend=x+dx, y, yend=y+dy 
+        mydata<-Segments(mydata)
+## Calculate the segmet for fitted valutes (with x, xend=x+dx, y, yend=y+dy 
+        mydata<-SegmentsFit(mydata)
+
+## write and arrange columns
+        mydata <- mydata %>% select( ID,half_loop, cluster, mSL, y, dy, dymax, x, dx, dxmax,  reg.slope, reg.intercept,
+x.fitted, dx.fitted, y.resid, dy.resid, x.fitted.min, x.fitted.max, y.resid.min, y.resid.max, dx.fitted.max, dy.resid.max, slope.fit, alpha, slope,  st_sl, xmin:ymax, f_on_samp, system, trace_d,  line_rate, length, tip, date)
+        write.csv(mydata, file = paste(Sys.Date(), "_StickSlip_Cluster_Slope_Segments_", myfilename), row.names = FALSE )
+
+```
+
+```{r, eval = TRUE, echo = FALSE, fig.show = "asis", fig.width=15, fig.height=5, result = "hide"}
+# Histogram dy in dependcy of the slope
+inputPanel(
+        selectInput("bi", label = "Number of bins:", choices = c(500, 750, 1000, 2000), selected = 500),
+        sliderInput("dy_hist_range", label = "Range:", min = -10*10^6, max = 10*10^6, value = c(-200000,500000))
+)
+renderPlot(
+        dyHistogram(mydata, low = as.numeric(input$dy_hist_range[1]), up = as.numeric(input$dy_hist_range[2]), same_scale = TRUE, logscale = FALSE, bi = as.numeric(input$bi))
+)
+#dyHistogram(mydata, low = -5000000, up = -200000, same_scale = TRUE, logscale = FALSE, bi =100)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, fig.width=15, fig.height=5}
+## Histogram Slopes
+inputPanel(
+        selectInput("bi", label = "Number of bins:", choices = c(500, 750, 1000, 2000), selected = 500),
+        sliderInput("slope_hist_range", label = "Change slope window:", min = -10*10^6, max = 10*10^6, value = c(-200000,500000))
+)
+renderPlot(
+        SlopeHistogram(mydata,low = as.numeric(input$slope_hist_range[1]), up = as.numeric(input$slope_hist_range[2]), logscale = FALSE, set_x_marker = 0, bi = as.numeric(input$bi), pr = 0, w = 3, h = 1)
+)
+#SlopeHistogram(mydata, logscale = FALSE, set_x_marker = 0, bi = 500, low = 0, up = 0, pr = 0, w = 3, h = 1)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, fig.width=10, fig.height=8}
+## Plot Slopes
+PlotSlope_1(mydata, logscale = TRUE, c = 2)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, fig.width=10, fig.height=8}
+## Plot Slopes
+PlotSlope_2(mydata, logscale = TRUE, c = 2)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, fig.width=10, fig.height=22}
+## Plot Slopes
+PlotSlope(mydata, c = 2, w = 4, h = 10)
+```
+
+## Plotting
+```{r, eval = TRUE, echo = TRUE, fig.width=10, fig.height=18}
+## Plotting
+PlotCol_RegLine_Fit(mydata, p =0 )
+```
+
+
+```{r, echo = TRUE, eval = TRUE, fig.width=10, fig.height=18}
+PlotColFit(mydata, c = 2, p = 0, xfitted = 0)
+```
+
+# Peaks & Segments Plots
+```{r, echo = TRUE, eval = TRUE, fig.width=10, fig.height=18}
+PlotCol_RegLine(mydata, c=2, p = 0)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, fig.width=6, fig.height=5}
+PlotBoxSystemForce_AllinOne(mydata)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, fig.width=6, fig.height=5}
+PlotBoxSystemForce(mydata)
+```
+
+# Residuals-Plot
+```{r, eval = TRUE, echo = TRUE, fig.width=10, fig.height=22}
+PlotColLm(mydata, c = 2, p = 0)
+```
+
+
+
+#Variable Description
+1. x in [um], AFM output
+2. u.def in [V$ 1\times10^-6 V$ ], AFM output
+8. st_sl, [1,-1], 1 = stick = positive slope, slip = -1 negative slope
+9. cluster in [integer], one cluster represents one peak, each cluster contains n points that belong to that peak
+10. sl_fac [points/peak], measure points pro peak 
+3. alpha [nN/V], calibration constant for calculating the friction force f_friction
+3. f_friction in [nN]
+4. f_on_samp in [nN], normal force applied on sample
+    i) 2nN
+    ii) 10nN
+    iii) 20nN
+5. x_speed in [um/s], AFM "slider" speed, the speed is calcuated by: lenght[um] x line rate [Hz=1/s] x 2 (half loops)
+    i) 1um/s
+    ii) x mm/s
+14. line rate [1/sec], frequency of the line scanning, AFM scannes several lines (back and forth) over the same length to collect data, and to determine the trace, retrace values. 
+15. length [um], the trace or retrace distance
+11. trace_d [1,0], scans in the forward (trace=1, 1-512 Bit) and reverse (retrace=-1, 513-1024 Bit) directions
+13. half_loop[#], number half loops per experiement, one half loop is one complete trace or retrace
+6. x_scan_dist in [um], max scan length of 10um (512 bits) both directions. 
+7. substrates [categorical]
+    i) bg = 1st control bare gel
+    ii) gel_PEM = 2nd control is gel-PEM with polymers on surface
+    iii) LB_on_Si = 3rd control, lipid bilayer on silica
+    iv) LB_on_gelPEM = fullsystem cell membrane model, lipid bilayer on gel-PEM. 
+12. Tip
+    i) blunt
+* slope.fit, over all slope of a complete half loop 
+* slope, slope of a cluster of points in which each point  pn < pn+1 or pn > pn1. A cluster is line with positive or negative slope. 
+
+
+
+
+
+
+
