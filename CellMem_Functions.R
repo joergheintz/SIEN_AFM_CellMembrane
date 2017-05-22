@@ -438,7 +438,7 @@ PlotCol_RegLine_Fit<-function(mydata = mydata, myname = "sys.time", p = 0,  c= 3
 PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200){
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
         g1 <- ggplot(mydata, aes(system, reg.slope))
-        g1 <- g1 + geom_boxplot(aes(fill = f_on_samp), outlier.colour = "red") #+ geom_point(size = 1, aes(colour = f_on_samp))
+        g1 <- g1 + geom_boxplot(aes(fill = system), outlier.colour = "red") + geom_point(size = 1, aes(colour = f_on_samp))
         g1 <- g1 + ggtitle(paste0("Regression Slopes"))
         g1 <- g1 + geom_abline(slope = 0, intercept = 0, linetype = 2, colour = 'red')
         
@@ -447,7 +447,7 @@ PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,
 }
 
 
-PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200){
+PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200, colScale = colSc){
         plots<-list()
         n=0
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
@@ -461,10 +461,10 @@ PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w
                 for (l in unique(mys$f_on_samp)){
                         mysl <- mys[mys$f_on_samp == l, ]
                         
-                        g1 <- ggplot(mysl, aes(system, reg.slope))
+                        g1 <- ggplot(mysl, aes(system, reg.slope, colour = system))
                         g1 <- g1 + ggtitle(paste0("Regression Slopes", ", ",l, ", ", v, " Hz", ", trace/re-trace: ", tr,  ", ", t, ", ", d))
                         g1 <- g1 + geom_boxplot(aes(), outlier.colour = "red") + geom_point(size = 1, colour = "red")
-                        g1
+                        g1 <- g1 + colScale
                         n=n+1
                         plots[[n]] <- g1
                 }
@@ -608,7 +608,35 @@ PlotSlope_2<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p
         multiplot(plotlist = plots, cols =c)
 }
 
+#####################################################################################################
+#####################################################################################################
 
+PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, h = 18, res = 200){
+        plots<-list()
+        n=0
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        
+        for (s in unique(mydata$system)){
+                mys<-mydata[mydata$system == s, ]
+                f<-mys$f_on_samp
+                v<-mys$line_rate
+                d<-mys$date
+                t<-mys$tip
+                tr<-mys$trace_d
+                for (l in unique(mys$half_loop)){
+                        mysl <- mys[mys$half_loop == l, ]
+                        
+                        g1 <- ggplot(mysl, aes(x=dy,y=slope, group = half_loop, colour = system))
+                        g1 <- g1 + geom_point(size = 0.2)
+                        g1 <- g1 + ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
+                        
+                        n=n+1
+                        plots[[n]] <- g1
+                }
+        }
+        if (p == 1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols =c)
+}
 
 #####################################################################################################
 #####################################################################################################
