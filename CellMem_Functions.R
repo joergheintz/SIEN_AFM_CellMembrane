@@ -236,6 +236,7 @@ Segments <- function(mydata=mydata){
                 if (mydata$half_loop[i+1] != mydata$half_loop[i]) {
                         mydata$dy[i+1]<-0
                         mydata$dx[i+1]<-0
+                        
                 }
         }
         mydata
@@ -513,7 +514,7 @@ PlotColLm<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h 
                         # Slope Plots #
 #####################################################################################################
 
-SlopeHistogram<-function(mydata, low = 0, up = 0, set_x_marker = 0, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time"){
+SlopeHistogram<-function(mydata = mydata, low = 0, up = 0, set_x_marker = 0, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time"){
         if (low == 0 & up == 0 ) {
                 low<-min(mydata$slope)
                 up<-max(mydata$slope)}
@@ -531,7 +532,7 @@ SlopeHistogram<-function(mydata, low = 0, up = 0, set_x_marker = 0, logscale = F
                         h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<up), ], aes(-log(abs(slope)), fill = system), bins = bi)
                 if(min_plus == TRUE)
                         h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<0), ], aes(-log(abs(slope)), fill = system), bins = bi)
-                h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>0 & mydata$slope<up), ], aes(log(slope), fill = system), bins = bi)
+                        h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>0 & mydata$slope<up), ], aes(log(slope), fill = system), bins = bi)
                 if(plus_plus == TRUE)
                         h1 <- h1 + geom_histogram(data = mydata[(mydata$slope>low & mydata$slope<up), ], aes(log(slope), fill = system), bins = bi)
                 
@@ -544,7 +545,7 @@ SlopeHistogram<-function(mydata, low = 0, up = 0, set_x_marker = 0, logscale = F
 #####################################################################################################
 #####################################################################################################
 
-PlotSlope_1<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p = 0, c= 2, w = 15, h = 18, res = 200){
+PlotSlope_1<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p = 0, c= 3, w = 10, h = 6, res = 200, colScale = colSc){
         plots<-list()
         n=0
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
@@ -560,9 +561,11 @@ PlotSlope_1<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p
                         if (logscale == TRUE){
                                 g1 <- g1 + geom_point(data = mysl[mysl$slope<0,], aes(x=-log(abs(dy)) ,y=-log(abs(slope)), colour = system), size = 0.5)
                                 g1 <- g1 + geom_point(data = mysl[mysl$slope>0,], aes(x=log(dy) ,y=log(slope), colour = system), size = 0.5)
+                                g1 <- g1 + colScale
                         }
                         if (logscale == FALSE){
                                 g1 <- g1 + geom_point(data = mysl, aes(x=dy,y=slope, colour = system), size = 0.5)
+                                g1 <- g1 + colScale
                         }
                         g1 <- g1 + ggtitle(paste0(s, ", ",fsamp, ", ", v, " Hz", ", trace/re-trace: ", tr, ", ", t, ", ", d))
                         n=n+1
@@ -574,7 +577,7 @@ PlotSlope_1<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p
 }
 
 
-PlotSlope_2<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p = 0, c= 2, w = 15, h = 18, res = 200){
+PlotSlope_2<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p = 0, c= 2, w = 15, h = 18, res = 200, colScale = colSc){
         plots<-list()
         n=0
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
@@ -590,9 +593,11 @@ PlotSlope_2<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p
                         if (logscale == TRUE){
                                 g1 <- g1 + geom_point(data = mysl[mysl$dy<0,], aes(x=-log(abs(dy)),y=slope, colour = system), size = 0.5)
                                 g1 <- g1 + geom_point(data = mysl[mysl$dy>0,], aes(x= log(dy) ,y=slope, colour = system), size = 0.5)
+                                g1 <- g1 + colScale
                         }
                         if (logscale == FALSE){
                                 g1 <- g1 + geom_point(data = mysl, aes(x=dy,y=slope, colour = system), size = 0.5)
+                                g1 <- g1 + colScale
                         }
                         g1 <- g1 + ggtitle(paste0(s, ", ",fsamp, ", ", v, " Hz", ", trace/re-trace: ", tr, ", ", t, ", ", d))
                         n=n+1
@@ -603,35 +608,7 @@ PlotSlope_2<-function(mydata = mydata, logscale = FALSE,  myname = "sys.time", p
         multiplot(plotlist = plots, cols =c)
 }
 
-#####################################################################################################
-#####################################################################################################
 
-PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, h = 18, res = 200){
-        plots<-list()
-        n=0
-        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
-        
-        for (s in unique(mydata$system)){
-                mys<-mydata[mydata$system == s, ]
-                f<-mys$f_on_samp
-                v<-mys$line_rate
-                d<-mys$date
-                t<-mys$tip
-                tr<-mys$trace_d
-                for (l in unique(mys$half_loop)){
-                        mysl <- mys[mys$half_loop == l, ]
-                        
-                        g1 <- ggplot(mysl, aes(x=dy,y=slope, group = half_loop))
-                        g1 <- g1 + geom_point(size = 0.2)
-                        g1 <- g1 + ggtitle(paste0(s, ", ",f, ", ", v, " Hz", ", trace/re-trace: ", tr, ", loop: ", l, ", ", t, ", ", d))
-                        
-                        n=n+1
-                        plots[[n]] <- g1
-                }
-        }
-        if (p == 1) png(myname, units="in", width=w, height=h, res=res)
-        multiplot(plotlist = plots, cols =c)
-}
 
 #####################################################################################################
 #####################################################################################################
