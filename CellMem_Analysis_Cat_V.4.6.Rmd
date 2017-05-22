@@ -64,7 +64,7 @@ source("CellMem_Functions.R")
         
         
 # create a cellmembrane color scale
-colSet <- "Set1"
+colSet <- "Dark2"
 myColors <- brewer.pal(5,colSet)
 names(myColors) <- levels(mydata$system)
 colSc <- scale_colour_manual(name = "system",values = myColors)
@@ -150,7 +150,7 @@ PlotColFit(mydata, c = 3, p = 0, xfitted = 0)
 
 # Peaks & Segments Plots
 ```{r, echo = TRUE, eval = TRUE, fig.width=10, fig.height=18}
-PlotCol_RegLine(mydata, c=2, p = 0)
+PlotCol_RegLine(mydata, c=3, p = 0)
 ```
 
 

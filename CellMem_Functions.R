@@ -448,7 +448,7 @@ PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,
 }
 
 
-PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200, colS = colSet){
+PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200, colScale = colSc){
         plots<-list()
         n=0
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
@@ -465,9 +465,8 @@ PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w
                         g1 <- ggplot(mysl, aes(system, reg.slope, colour = system))
                         g1 <- g1 + ggtitle(paste0("Regression Slopes", ", ",l, ", ", v, " Hz", ", trace/re-trace: ", tr,  ", ", t, ", ", d))
                         g1 <- g1 + geom_boxplot(aes(), outlier.colour = "red") + geom_point(size = 1, colour = "red")
-                        g1 <- g1 + colScale
                         n=n+1
-                        plots[[n]] <- g1 + scale_fill_brewer(palette = colS)
+                        plots[[n]] <- g1 + colScale
                 }
         }
         if (p==1) png(myname, units="in", width=w, height=h, res=res)
