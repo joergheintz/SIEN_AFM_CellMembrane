@@ -435,7 +435,7 @@ PlotCol_RegLine_Fit<-function(mydata = mydata, myname = "sys.time", p = 0,  c= 3
                                 #   Boxplots   #
 #####################################################################################################
 
-PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200){
+PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200, colS = colSet){
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
         g1 <- ggplot(mydata, aes(system, reg.slope))
         g1 <- g1 + geom_boxplot(aes(fill = system), outlier.colour = "red") + geom_point(size = 1, aes(colour = f_on_samp))
@@ -443,11 +443,12 @@ PlotBoxSystemForce_AllinOne<-function(mydata = mydata, myname = "sys.time", p=0,
         g1 <- g1 + geom_abline(slope = 0, intercept = 0, linetype = 2, colour = 'red')
         
         if (p==1) png(myname, units="in", width=w, height=h, res=res)
+        g1 <- g1 + scale_fill_brewer(palette = colS)
         g1
 }
 
 
-PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200, colScale = colSc){
+PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h = 18, res = 200, colS = colSet){
         plots<-list()
         n=0
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
@@ -466,7 +467,7 @@ PlotBoxSystemForce<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w
                         g1 <- g1 + geom_boxplot(aes(), outlier.colour = "red") + geom_point(size = 1, colour = "red")
                         g1 <- g1 + colScale
                         n=n+1
-                        plots[[n]] <- g1
+                        plots[[n]] <- g1 + scale_fill_brewer(palette = colS)
                 }
         }
         if (p==1) png(myname, units="in", width=w, height=h, res=res)
@@ -514,7 +515,7 @@ PlotColLm<-function(mydata = mydata, myname = "sys.time", p=0,  c= 3, w = 15, h 
                         # Slope Plots #
 #####################################################################################################
 
-SlopeHistogram<-function(mydata = mydata, low = 0, up = 0, set_x_marker = 0, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time"){
+SlopeHistogram<-function(mydata = mydata, low = 0, up = 0, set_x_marker = 0, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time", colS = colSet){
         if (low == 0 & up == 0 ) {
                 low<-min(mydata$slope)
                 up<-max(mydata$slope)}
@@ -539,6 +540,7 @@ SlopeHistogram<-function(mydata = mydata, low = 0, up = 0, set_x_marker = 0, log
         }
         if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
         if (pr == 1) png(myname, units="in", width=w, height=h, res=res)
+        h1 <- h1 + scale_fill_brewer(palette = colS)
         h1
 }
 
@@ -642,7 +644,7 @@ PlotSlope<-function(mydata = mydata, myname = "sys.time",  p = 0, c= 3, w = 15, 
 #####################################################################################################
 
 
-dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_scale = FALSE, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time"){
+dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_scale = FALSE, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time",  colS = colSet){
         plots<-list()
         n=0
         mindy = 0
@@ -659,8 +661,7 @@ dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_sc
                 h1 <- h1 + ggtitle(paste0("Load = ",i))
                 #h1 <- h1 + geom_vline(xintercept = set_x_marker)
                 if (logscale == FALSE){
-                        h1 <- h1 + geom_histogram(data = 
-                                                          myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(dy, fill = system), bins = bi)
+                        h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(dy, fill = system), bins = bi)
                 }
                 if (logscale == TRUE){
                         min_plus <- as.logical(low<0 & up>=0)
@@ -668,16 +669,12 @@ dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_sc
                         plus_plus <- as.logical(low>0 & up>=0)
                         
                         if(min_min == TRUE) 
-                                h1 <- h1 + geom_histogram(data = 
-                                                                  myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(-log(abs(dy)), fill = system), bins = bi)
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(-log(abs(dy)), colour = system), bins = bi)
                         if(min_plus == TRUE)
-                                h1 <- h1 + geom_histogram(data = 
-                                                                  myfdata[(myfdata$slope>low & myfdata$slope<=0), ], aes(-log(abs(dy)), fill = system), bins = bi)
-                        h1 <- h1 + geom_histogram(data = 
-                                                          myfdata[(myfdata$slope>=0 & myfdata$slope<up), ], aes(log(dy), fill = system), bins = bi)
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<=0), ], aes(-log(abs(dy)), colour = system), bins = bi)
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>=0 & myfdata$slope<up), ], aes(log(dy), colour = system), bins = bi)
                         if(plus_plus == TRUE)
-                                h1 <- h1 + geom_histogram(data = 
-                                                                  myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(log(dy), fill = system), bins = bi)
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(log(dy), colour = system), bins = bi)
                 }
                 # scales 
                 if (same_scale == TRUE){
@@ -691,7 +688,7 @@ dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_sc
                         #print(paste("counts histogram = ", hist(myfdata[myfdata$slope>low & myfdata$slope<up & myfdata$dy != 0, ]$dy, breaks = bi)$counts))
                 }
                 n=n+1
-                plots[[n]] <- h1
+                plots[[n]] <- h1 + scale_fill_brewer(palette = colS)
         }
         
         if (same_scale == TRUE){
