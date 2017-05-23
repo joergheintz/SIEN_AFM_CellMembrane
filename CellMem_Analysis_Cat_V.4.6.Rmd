@@ -20,6 +20,7 @@ library(broom)
 library(shiny)
 library(manipulate)
 library(RColorBrewer)
+library(wesanderson)
 knitr::opts_chunk$set(echo = FALSE)
 opts_knit$set(root.dir = "/Users/joergheintz/Documents/06_Projects/FrictionCellMembranes")
 source("CellMem_Functions.R")
@@ -64,7 +65,7 @@ source("CellMem_Functions.R")
         
         
 # create a cellmembrane color scale
-colSet <- "Dark2"
+colSet <- "Set1"
 myColors <- brewer.pal(5,colSet)
 names(myColors) <- levels(mydata$system)
 colSc <- scale_colour_manual(name = "system",values = myColors)

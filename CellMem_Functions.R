@@ -21,7 +21,7 @@ Ingestion <- function(alpha, ColumnsOfInterest, fileLineOffset, mypath, lowlimit
                 
                 #### generating the data.frame 
                 helper$f_on_samp<-fnc[2]
-                helper$date<-as.Date(fnc[4], "%d %m %Y")
+                helper$date<-as.Date(fnc[4], "%m %d %Y")
                 helper$alpha<-alpha
                 helper$ID<-1:length(helper$x) # ID will be overwritten, when points are tranformed into nodes.
                 helper$tip<-fnc[3]
