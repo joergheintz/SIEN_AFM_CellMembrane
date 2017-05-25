@@ -704,6 +704,70 @@ dyHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_sc
 #####################################################################################################
 #####################################################################################################
 
+#####################################################################################################
+#####################################################################################################
+
+
+dymaxHistogram<-function(mydata, low = 0, up = 0, c = 2, set_x_marker = 0,  same_scale = FALSE, logscale = FALSE, bi = 500, pr = 0, w =5, h = 3, res = 200, myname = "sys.time",  colS = colSet){
+        plots<-list()
+        n=0
+        mindy = 0
+        maxdy = 0
+        mincount = 0
+        maxcount = 0
+        if (low == 0 & up == 0 ) {
+                low<-min(mydata$slope)
+                up<-max(mydata$slope)}
+        
+        for (i in unique(mydata$f_on_samp)){
+                myfdata<-mydata[mydata$f_on_samp == i & mydata$dymax!=0,]
+                h1 <- ggplot()
+                h1 <- h1 + ggtitle(paste0("Load = ",i))
+                #h1 <- h1 + geom_vline(xintercept = set_x_marker)
+                if (logscale == FALSE){
+                        h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(dymax, fill = system), bins = bi)
+                }
+                if (logscale == TRUE){
+                        min_plus <- as.logical(low<0 & up>=0)
+                        min_min <- as.logical(low<0 & up<=0)
+                        plus_plus <- as.logical(low>0 & up>=0)
+                        
+                        if(min_min == TRUE) 
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(-log(abs(dymax)), colour = system), bins = bi)
+                        if(min_plus == TRUE)
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<=0), ], aes(-log(abs(dymax)), colour = system), bins = bi)
+                        h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>=0 & myfdata$slope<up), ], aes(log(dymax), colour = system), bins = bi)
+                        if(plus_plus == TRUE)
+                                h1 <- h1 + geom_histogram(data = myfdata[(myfdata$slope>low & myfdata$slope<up), ], aes(log(dymax), colour = system), bins = bi)
+                }
+                # scales 
+                if (same_scale == TRUE){
+                        min_ct<-as.numeric(min(hist(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dymax, plot = FALSE, breaks = bi)$counts))
+                        max_ct<-as.numeric(max(hist(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dymax, plot = FALSE, breaks = bi)$counts))
+                        if (mindy > min(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dymax)) mindy <- min(myfdata$dymax)
+                        if (maxdy < max(myfdata[myfdata$slope>low & myfdata$slope<up, ]$dymax)) maxdy <- max(myfdata$dymax)
+                        if (mincount > min_ct) mincount <- min_ct
+                        if (maxcount < max_ct) maxcount <- max_ct
+                        #print(paste("min_ct = ", min_ct, "max_ct = ", max_ct))
+                        #print(paste("counts histogram = ", hist(myfdata[myfdata$slope>low & myfdata$slope<up & myfdata$dymax != 0, ]$dymax, breaks = bi)$counts))
+                }
+                n=n+1
+                plots[[n]] <- h1 + scale_fill_brewer(palette = colS)
+        }
+        
+        if (same_scale == TRUE){
+                for (i in 1:n){
+                        plots[[i]] <- plots[[i]] + ylim(c(mincount, maxcount)) + xlim(c(mindy, maxdy))
+                }
+        }
+        
+        if (myname == "sys.time") myname <- paste0(Sys.time(),".png")
+        if (pr == 1) png(myname, units="in", width=w, height=h, res=res)
+        multiplot(plotlist = plots, cols = c)
+}
+
+#####################################################################################################
+#####################################################################################################
 
 multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
         library(grid)
